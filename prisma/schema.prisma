@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model represents the application users.
+model User {
+  id                  String                @id @default(uuid()) // Unique identifier for each user
+  clerkUserId        String                @unique // Unique identifier from Clerk
+  email               String                @unique // Unique email for user identification
+  name                String?               // Optional name for the user
+  imageUrl           String?               // Optional profile image URL for the user
+  createdAt          DateTime              @default(now()) // Timestamp when user was created
+  updatedAt          DateTime              @updatedAt // Timestamp when user was last updated
+
+  // Relations
+  transactions        Transaction[]         // One User can have multiple Transactions
+  budgets             Budget[]              // One User can create multiple Budgets
+  recurringTransactions RecurringTransaction[] // One User can have multiple Recurring Transactions
+}
+
+// Transaction model represents an expense or an income.
+model Transaction {
+  id              String            @id @default(uuid()) // Unique identifier for each transaction
+  text            String             // Description of the Transaction
+  amount          Float              // Amount of the transaction
+  userId          String             // Foreign key for linking to User
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade) // Relation to User
+  categoryId      String             // Foreign key for linking to Category
+  category        Category           @relation(fields: [categoryId], references: [id]) // Relation to Category
+  paymentMethodId String?            // Optional Foreign key for linking to PaymentMethod
+  paymentMethod   PaymentMethod?     @relation(fields: [paymentMethodId], references: [id]) // Relation to PaymentMethod (optional)
+  createdAt       DateTime           @default(now()) // Timestamp when transaction was created
+  notes           String?            // Optional notes for additional information about the transaction
+  tags            Tag[]              @relation("TransactionTags") // Many-to-many relationship with Tag
+
+  RecurringTransaction RecurringTransaction[]
+}
+
+// Category model represents different types of expenses or income.
+model Category {
+  id          String        @id @default(uuid()) // Unique identifier for each Category
+  name        String        @unique // Unique name of the Category
+  
+  // Relations
+  transactions Transaction[] // One Category can have multiple Transactions
+  budgets     Budget[]      // One Category can be associated with multiple Budgets
+}
+
+// PaymentMethod model represents different ways of payment.
+model PaymentMethod {
+  id          String       @id @default(uuid()) // Unique identifier for each PaymentMethod
+  name        String       @unique // Unique name of the Payment Method
+
+  // Relations
+  transactions Transaction[] // One Payment Method can be associated with multiple Transactions
+}
+
+// RecurringTransaction model represents transactions that recur over time.
+model RecurringTransaction {
+  id            String      @id @default(uuid()) // Unique identifier for each RecurringTransaction
+  transactionId String      @unique // Foreign key for linking to Transaction
+  frequency     String      // Frequency of transaction (daily, weekly, monthly, etc.)
+  nextPayment   DateTime    // Date of the next payment
+  userId        String      // Foreign key for linking to User
+  user          User        @relation(fields: [userId], references: [id]) // Relation to User
+  createdAt     DateTime    @default(now()) // Timestamp when the RecurringTransaction was created
+
+  // Relation back to Transaction
+  transaction   Transaction @relation(fields: [transactionId], references: [id]) // Relation to Transaction
+}
+
+// Budget model represents financial plans over time for different Categories.
+model Budget {
+  id          String       @id @default(uuid()) // Unique identifier for each Budget
+  userId      String       // Foreign key for linking to User
+  user        User         @relation(fields: [userId], references: [id]) // Relation to User
+  categoryId  String       // Foreign key for linking to Category
+  category    Category     @relation(fields: [categoryId], references: [id]) // Relation to Category
+  amount      Float        // Amount budgeted
+  period      DateTime     // Start/End period for budgeting
+  createdAt   DateTime     @default(now()) // Timestamp when the Budget was created
+}
+
+// Tag model represents labels for categorizing Transactions.
+model Tag {
+  id          String         @id @default(uuid()) // Unique identifier for each Tag
+  name        String         @unique // Unique name of the Tag
+  transactions Transaction[]  @relation("TransactionTags") // Many-to-many relationship with Transaction
+}
